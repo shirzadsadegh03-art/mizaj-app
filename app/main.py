@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from .mizaj_engine import QUESTIONS, evaluate
 from .setteh import generate
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "mizaj.db"
+DB_PATH = Path(os.environ.get("DATA_DIR") or Path(__file__).resolve().parent.parent / "data") / "mizaj.db"
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "change-me")
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
