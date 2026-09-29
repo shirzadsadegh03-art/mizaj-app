@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مزاج‌سنجی</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#22302b;--mut:#66736d;--acc:#2f6f5e;--line:#dcd8cd}
+@media (prefers-color-scheme:dark){:root{--bg:#161b19;--card:#1f2724;--ink:#e8ede9;--mut:#9aa8a1;--acc:#5bb59c;--line:#33403b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.8 Tahoma,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:12px 0 4px}p.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+label.f{display:block;margin-bottom:12px;font-size:14px;color:var(--mut)}
+input,select{width:100%;padding:10px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.q{margin-bottom:16px}.q b{display:block;margin-bottom:6px}
+.opt{display:inline-block;margin:0 0 6px 6px}
+.opt input{display:none}
+.opt span{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:20px;cursor:pointer;font-size:14px}
+.opt input:checked+span{background:var(--acc);color:#fff;border-color:var(--acc)}
+button{width:100%;padding:13px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-size:16px;cursor:pointer}
+button:disabled{opacity:.6}
+#bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:14px}#bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+#err{color:#c0392b;margin:10px 0;min-height:24px;font-size:14px}
+#done{display:none;text-align:center}#code{font:700 30px monospace;letter-spacing:2px;direction:ltr;margin:12px 0;color:var(--acc)}
+small{color:var(--mut);display:block;margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<div id="formbox">
+<h1>مزاج‌سنجی</h1>
+<p class="sub">اطلاعات خود را وارد کنید و به ۲۴ سؤال پاسخ دهید. در پایان یک کد پیگیری دریافت می‌کنید.</p>
+<div class="card">
+<div class="row">
+<label class="f">نام<input id="first_name" autocomplete="given-name"></label>
+<label class="f">نام خانوادگی<input id="last_name" autocomplete="family-name"></label>
+</div>
+<label class="f">شماره موبایل<input id="mobile" inputmode="tel" placeholder="09123456789" autocomplete="tel"></label>
+<div class="row">
+<label class="f">شهر<input id="city"></label>
+<label class="f">سن<input id="age" inputmode="numeric"></label>
+</div>
+<label class="f">جنسیت<select id="gender"><option value="">انتخاب کنید</option><option>زن</option><option>مرد</option></select></label>
+</div>
+<div id="bar"><i></i></div>
+<div class="card" id="qs"></div>
+<div id="err"></div>
+<button id="go">ثبت و دریافت کد پیگیری</button>
+<small>این ابزار آموزشی است و جایگزین مشاوره پزشک نیست. اطلاعات شما نزد مشاور محفوظ می‌ماند.</small>
+</div>
+<div class="card" id="done">
+<h1>اطلاعات شما ثبت شد</h1>
+<p>کد پیگیری شما:</p>
+<div id="code"></div>
+<button id="copy">کپی کد</button>
+<small>این کد را نگه دارید و هنگام دریافت نتیجه به مشاور بدهید.</small>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fa2en=s=>s.replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));
+let N=0;
+function progress(){const n=document.querySelectorAll("#qs input:checked").length;$("bar").firstChild.style.width=(n/N*100)+"%"}
+fetch("/questions").then(r=>r.json()).then(qs=>{
+  N=qs.length;
+  $("qs").innerHTML=qs.map((q,i)=>`<div class="q"><b>${i+1}. ${q.text}</b>`+
+    q.options.map((o,j)=>`<label class="opt"><input type="radio" name="q${i}" value="${j}"><span>${o}</span></label>`).join("")+`</div>`).join("");
+  $("qs").addEventListener("change",progress);
+}).catch(()=>$("err").textContent="اتصال به سرور برقرار نشد.");
+$("go").onclick=async()=>{
+  const err=$("err");err.textContent="";
+  const v=id=>fa2en($(id).value.trim());
+  const answers=[];
+  for(let i=0;i<N;i++){const c=document.querySelector(`input[name=q${i}]:checked`);
+    if(!c){err.textContent=`سؤال ${i+1} بی‌پاسخ مانده است.`;location.hash="";document.querySelectorAll(".q")[i].scrollIntoView({block:"center"});return}
+    answers.push(+c.value)}
+  const body={first_name:v("first_name"),last_name:v("last_name"),mobile:v("mobile"),city:v("city"),gender:$("gender").value,age:parseInt(v("age"),10),answers};
+  if(!body.first_name||!body.last_name||!body.city||!body.gender||!body.age){err.textContent="لطفاً همه اطلاعات بالای فرم را کامل کنید.";scrollTo(0,0);return}
+  $("go").disabled=true;
+  try{
+    const r=await fetch("/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok){err.textContent=r.status==422?"اطلاعات واردشده معتبر نیست (شماره موبایل و سن را بررسی کنید).":"خطا در ثبت. دوباره تلاش کنید.";$("go").disabled=false;return}
+    $("formbox").style.display="none";$("done").style.display="block";$("code").textContent=d.tracking_code;scrollTo(0,0);
+  }catch(e){err.textContent="اتصال به سرور برقرار نشد.";$("go").disabled=false}
+};
+$("copy").onclick=()=>{navigator.clipboard.writeText($("code").textContent);$("copy").textContent="کپی شد"};
+</script>
+</body>
+</html>
